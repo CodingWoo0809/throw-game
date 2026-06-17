@@ -253,6 +253,7 @@
       backdrop-filter: blur(10px);
     }
 
+    .mode-modal,
     .quiz-modal {
       position: absolute;
       inset: 0;
@@ -264,8 +265,78 @@
       z-index: 3;
     }
 
+    .mode-modal {
+      background: rgba(23, 32, 42, 0.34);
+      z-index: 5;
+    }
+
+    .mode-modal.hidden,
     .quiz-modal.hidden {
       display: none;
+    }
+
+    .mode-card {
+      width: min(620px, 94%);
+      border: 1px solid rgba(23, 32, 42, 0.16);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 24px 70px rgba(23, 32, 42, 0.26);
+      padding: 18px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .mode-title {
+      color: var(--ink);
+      font-size: clamp(24px, 3vw, 34px);
+      font-weight: 900;
+      text-align: center;
+    }
+
+    .mode-subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 800;
+      line-height: 1.45;
+      text-align: center;
+      word-break: keep-all;
+    }
+
+    .mode-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .mode-button {
+      width: 100%;
+      height: auto;
+      min-height: 70px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(23, 32, 42, 0.16);
+      background: #ffffff;
+      color: var(--ink);
+      box-shadow: 0 10px 24px rgba(23, 32, 42, 0.12);
+      display: grid;
+      gap: 5px;
+      justify-items: start;
+      text-align: left;
+      font: 900 17px/1.15 "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
+    }
+
+    .mode-button.primary {
+      background: #2f8f64;
+      color: #ffffff;
+    }
+
+    .mode-button small {
+      color: inherit;
+      opacity: 0.76;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.3;
+      word-break: keep-all;
     }
 
     .quiz-card {
@@ -508,6 +579,10 @@
         grid-template-columns: 1fr;
       }
 
+      .mode-actions {
+        grid-template-columns: 1fr;
+      }
+
       .summary-card {
         max-height: 92%;
         overflow: auto;
@@ -524,7 +599,7 @@
     <section class="hud" aria-label="게임 상태">
       <div class="player-panel" aria-label="왼쪽 플레이어">
         <div class="player-top">
-          <div class="name"><span class="dot left-dot"></span><span>노랑</span></div>
+          <div class="name"><span class="dot left-dot"></span><span id="leftName">노랑</span></div>
           <div class="score" id="leftScore">0승</div>
         </div>
         <div class="hp-track" aria-hidden="true"><div class="hp-fill left" id="leftHp"></div></div>
@@ -535,7 +610,7 @@
       </div>
       <div class="player-panel" aria-label="오른쪽 플레이어">
         <div class="player-top">
-          <div class="name"><span class="dot right-dot"></span><span>회색</span></div>
+          <div class="name"><span class="dot right-dot"></span><span id="rightName">회색</span></div>
           <div class="score" id="rightScore">0승</div>
         </div>
         <div class="hp-track" aria-hidden="true"><div class="hp-fill right" id="rightHp"></div></div>
@@ -546,6 +621,30 @@
       <div class="stage">
         <canvas id="game" width="960" height="540"></canvas>
         <div class="message" id="message">노랑 차례</div>
+        <div class="mode-modal hidden" id="modeModal" aria-hidden="true">
+          <div class="mode-card" role="dialog" aria-modal="true" aria-labelledby="modeTitle">
+            <div class="mode-title" id="modeTitle">모드 선택</div>
+            <div class="mode-subtitle">친구와 번갈아 던지거나, 회색 AI와 대결해요.</div>
+            <div class="mode-actions">
+              <button class="mode-button primary" type="button" data-mode="pvp">
+                <span>PvP</span>
+                <small>지금처럼 두 플레이어가 번갈아 플레이</small>
+              </button>
+              <button class="mode-button" type="button" data-mode="pve" data-difficulty="easy">
+                <span>PvE 하</span>
+                <small>명중 35% · 문제 45%</small>
+              </button>
+              <button class="mode-button" type="button" data-mode="pve" data-difficulty="normal">
+                <span>PvE 중</span>
+                <small>명중 55% · 문제 65%</small>
+              </button>
+              <button class="mode-button" type="button" data-mode="pve" data-difficulty="hard">
+                <span>PvE 상</span>
+                <small>명중 75% · 문제 85%</small>
+              </button>
+            </div>
+          </div>
+        </div>
         <div class="quiz-modal hidden" id="quizModal" aria-hidden="true">
           <div class="quiz-card" role="dialog" aria-modal="true" aria-labelledby="quizQuestion">
             <div class="quiz-meta" id="quizMeta">코인 문제</div>
@@ -558,7 +657,7 @@
           <div class="summary-card" role="dialog" aria-modal="true" aria-labelledby="summaryTitle">
             <div class="summary-title" id="summaryTitle"></div>
             <div id="summaryStats"></div>
-            <button class="summary-next" id="summaryNext" type="button">다음 게임</button>
+            <button class="summary-next" id="summaryNext" type="button">모드 선택</button>
           </div>
         </div>
       </div>
@@ -581,12 +680,16 @@
     const powerValue = document.querySelector("#powerValue");
     const leftHp = document.querySelector("#leftHp");
     const rightHp = document.querySelector("#rightHp");
+    const leftName = document.querySelector("#leftName");
+    const rightName = document.querySelector("#rightName");
     const leftScore = document.querySelector("#leftScore");
     const rightScore = document.querySelector("#rightScore");
     const turnLabel = document.querySelector("#turnLabel");
     const windLabel = document.querySelector("#windLabel");
     const message = document.querySelector("#message");
     const restart = document.querySelector("#restart");
+    const modeModal = document.querySelector("#modeModal");
+    const modeButtons = document.querySelectorAll(".mode-button[data-mode]");
     const quizModal = document.querySelector("#quizModal");
     const quizMeta = document.querySelector("#quizMeta");
     const quizQuestion = document.querySelector("#quizQuestion");
@@ -622,6 +725,34 @@
     ];
     const quizReward = 1;
     const quizEveryThrows = 4;
+    const aiPlayerIndex = 1;
+    const aiCriticalChance = 0.3;
+    const aiProfiles = {
+      easy: {
+        label: "하",
+        hitChance: 0.35,
+        quizChance: 0.45,
+        aimNoise: 86,
+        missMin: 170,
+        missMax: 285
+      },
+      normal: {
+        label: "중",
+        hitChance: 0.55,
+        quizChance: 0.65,
+        aimNoise: 48,
+        missMin: 130,
+        missMax: 230
+      },
+      hard: {
+        label: "상",
+        hitChance: 0.75,
+        quizChance: 0.85,
+        aimNoise: 22,
+        missMin: 90,
+        missMax: 175
+      }
+    };
     const quizPool = [
       {
         q: "제품 1개의 원가가 8,000원이고 이익 25%를 붙이면 판매가는?",
@@ -747,6 +878,256 @@
         q: "완성품 40개 중 불량품이 2개이면 정상 제품은 몇 개인가?",
         choices: ["2개", "20개", "36개", "38개", "40개"],
         answer: 3
+      },
+      {
+        q: "작업자 4명이 각각 6개씩 만들면 총 몇 개인가?",
+        choices: ["10개", "12개", "18개", "24개", "30개"],
+        answer: 3
+      },
+      {
+        q: "원가 5,000원에 이익 20%를 붙이면 판매가는?",
+        choices: ["5,200원", "5,500원", "6,000원", "6,500원", "7,000원"],
+        answer: 2
+      },
+      {
+        q: "3m는 몇 mm인가?",
+        choices: ["30mm", "300mm", "1,000mm", "3,000mm", "30,000mm"],
+        answer: 3
+      },
+      {
+        q: "전체 120개 중 30개를 검사했다. 검사 비율은?",
+        choices: ["10%", "20%", "25%", "30%", "40%"],
+        answer: 2
+      },
+      {
+        q: "자료 중 가장 큰 값을 뜻하는 말은?",
+        choices: ["평균", "최댓값", "최솟값", "단가", "축척"],
+        answer: 1
+      },
+      {
+        q: "하루 8시간씩 5일 일하면 총 작업 시간은?",
+        choices: ["13시간", "30시간", "40시간", "45시간", "80시간"],
+        answer: 2
+      },
+      {
+        q: "축척 1:100에서 도면 길이 2cm는 실제 길이로 얼마인가?",
+        choices: ["20cm", "50cm", "1m", "2m", "20m"],
+        answer: 3
+      },
+      {
+        q: "전체 금액을 구할 때 단가에 무엇을 곱하는가?",
+        choices: ["시간", "수량", "평균", "불량률", "축척"],
+        answer: 1
+      },
+      {
+        q: "정가 15,000원을 20% 할인하면 판매가는?",
+        choices: ["9,000원", "10,000원", "12,000원", "13,000원", "18,000원"],
+        answer: 2
+      },
+      {
+        q: "2.5kg은 몇 g인가?",
+        choices: ["25g", "250g", "1,000g", "2,500g", "25,000g"],
+        answer: 3
+      },
+      {
+        q: "50개 중 불량품이 5개이면 불량률은?",
+        choices: ["1%", "5%", "8%", "10%", "20%"],
+        answer: 3
+      },
+      {
+        q: "세 값 8, 12, 16의 평균은?",
+        choices: ["8", "10", "12", "14", "16"],
+        answer: 2
+      },
+      {
+        q: "90분은 몇 시간인가?",
+        choices: ["1시간", "1.2시간", "1.5시간", "2시간", "9시간"],
+        answer: 2
+      },
+      {
+        q: "평균 속도를 구하는 식으로 알맞은 것은?",
+        choices: ["시간 ÷ 거리", "거리 + 시간", "거리 ÷ 시간", "거리 × 시간", "시간 - 거리"],
+        answer: 2
+      },
+      {
+        q: "길이 10m를 2m씩 자르면 몇 조각인가?",
+        choices: ["2조각", "3조각", "4조각", "5조각", "10조각"],
+        answer: 3
+      },
+      {
+        q: "7,500원짜리 물건 2개의 총액은?",
+        choices: ["7,500원", "10,000원", "15,000원", "17,500원", "75,000원"],
+        answer: 2
+      },
+      {
+        q: "비율 1:4에서 전체 50개를 나누면 첫 번째 몫은?",
+        choices: ["5개", "10개", "20개", "25개", "40개"],
+        answer: 1
+      },
+      {
+        q: "생산량이 40개에서 50개가 되었다. 증가한 개수는?",
+        choices: ["5개", "10개", "40개", "50개", "90개"],
+        answer: 1
+      },
+      {
+        q: "1,000mL는 몇 L인가?",
+        choices: ["0.1L", "1L", "10L", "100L", "1,000L"],
+        answer: 1
+      },
+      {
+        q: "자료가 몇 개인지 나타내는 말로 알맞은 것은?",
+        choices: ["단위", "개수", "색깔", "도면", "이익"],
+        answer: 1
+      },
+      {
+        q: "가로 8m, 세로 3m인 직사각형의 넓이는?",
+        choices: ["11m²", "16m²", "24m²", "30m²", "48m²"],
+        answer: 2
+      },
+      {
+        q: "시급 9,000원으로 4시간 일하면 임금은?",
+        choices: ["13,000원", "18,000원", "27,000원", "36,000원", "40,000원"],
+        answer: 3
+      },
+      {
+        q: "정가 30,000원의 10% 할인액은?",
+        choices: ["1,000원", "3,000원", "5,000원", "10,000원", "27,000원"],
+        answer: 1
+      },
+      {
+        q: "제품 5개의 무게가 2kg이면 1개의 무게는?",
+        choices: ["200g", "300g", "400g", "500g", "1kg"],
+        answer: 2
+      },
+      {
+        q: "원가 20,000원, 판매가 26,000원일 때 원가 기준 이익률은?",
+        choices: ["10%", "20%", "25%", "30%", "40%"],
+        answer: 3
+      },
+      {
+        q: "2시간에 40개를 만들었다. 같은 속도라면 30분 생산량은?",
+        choices: ["5개", "10개", "15개", "20개", "40개"],
+        answer: 1
+      },
+      {
+        q: "그래프의 가로축에는 보통 무엇을 적는가?",
+        choices: ["항목이나 시간", "색깔", "제품 무게만", "문제 번호", "평균값만"],
+        answer: 0
+      },
+      {
+        q: "1.2km는 몇 m인가?",
+        choices: ["12m", "120m", "1,000m", "1,200m", "12,000m"],
+        answer: 3
+      },
+      {
+        q: "전체 200개 중 50개는 몇 %인가?",
+        choices: ["10%", "20%", "25%", "40%", "50%"],
+        answer: 2
+      },
+      {
+        q: "재고가 70개에서 55개로 줄었다. 감소한 개수는?",
+        choices: ["10개", "15개", "25개", "55개", "125개"],
+        answer: 1
+      },
+      {
+        q: "판매가에서 원가를 뺀 금액을 무엇이라고 하는가?",
+        choices: ["할인", "이익", "축척", "평균", "시간"],
+        answer: 1
+      },
+      {
+        q: "60분은 몇 시간인가?",
+        choices: ["0.5시간", "1시간", "1.5시간", "2시간", "6시간"],
+        answer: 1
+      },
+      {
+        q: "250mL 병 4개의 총 용량은?",
+        choices: ["500mL", "750mL", "900mL", "1L", "4L"],
+        answer: 3
+      },
+      {
+        q: "자료를 크기순으로 놓았을 때 가운데 값을 무엇이라고 하는가?",
+        choices: ["최댓값", "최솟값", "중앙값", "단가", "총액"],
+        answer: 2
+      },
+      {
+        q: "비율 3:2에서 전체 100개를 나누면 첫 번째 몫은?",
+        choices: ["20개", "30개", "40개", "60개", "80개"],
+        answer: 3
+      },
+      {
+        q: "한 변이 5m인 정사각형의 둘레는?",
+        choices: ["10m", "15m", "20m", "25m", "30m"],
+        answer: 2
+      },
+      {
+        q: "백분율은 무엇을 기준으로 나타낸 비율인가?",
+        choices: ["1", "10", "50", "100", "1,000"],
+        answer: 3
+      },
+      {
+        q: "8개에 12,000원인 물건의 단가는?",
+        choices: ["1,000원", "1,500원", "2,000원", "3,000원", "4,000원"],
+        answer: 1
+      },
+      {
+        q: "4시간 동안 80km를 이동했다. 평균 속도는?",
+        choices: ["10km/h", "15km/h", "20km/h", "40km/h", "80km/h"],
+        answer: 2
+      },
+      {
+        q: "24개를 6개씩 포장하면 몇 상자인가?",
+        choices: ["3상자", "4상자", "5상자", "6상자", "12상자"],
+        answer: 1
+      },
+      {
+        q: "m, kg, L처럼 측정값 뒤에 붙는 표시를 무엇이라고 하는가?",
+        choices: ["가격", "단위", "평균", "축척", "비율"],
+        answer: 1
+      },
+      {
+        q: "생산 계획이 100개이고 실제 생산이 90개이면 부족한 개수는?",
+        choices: ["5개", "10개", "90개", "100개", "190개"],
+        answer: 1
+      },
+      {
+        q: "서로 같은 비율을 나타내는 식을 무엇이라고 하는가?",
+        choices: ["평균", "비례식", "할인식", "단위", "도표"],
+        answer: 1
+      },
+      {
+        q: "500g은 몇 kg인가?",
+        choices: ["0.05kg", "0.2kg", "0.5kg", "5kg", "50kg"],
+        answer: 2
+      },
+      {
+        q: "20개 중 정상 제품이 15개이면 정상률은?",
+        choices: ["25%", "50%", "60%", "75%", "90%"],
+        answer: 3
+      },
+      {
+        q: "표나 그래프의 제목은 주로 무엇을 알려 주는가?",
+        choices: ["글자 색", "자료의 내용", "계산 순서", "축척만", "단가만"],
+        answer: 1
+      },
+      {
+        q: "12,000원을 3명이 똑같이 나누면 한 명당 얼마인가?",
+        choices: ["3,000원", "3,500원", "4,000원", "6,000원", "12,000원"],
+        answer: 2
+      },
+      {
+        q: "작업속도가 시간당 5개일 때 6시간 작업량은?",
+        choices: ["11개", "20개", "25개", "30개", "35개"],
+        answer: 3
+      },
+      {
+        q: "도면 길이 6cm가 실제 길이 3m를 나타낼 때 축척은?",
+        choices: ["1:5", "1:30", "1:50", "1:100", "1:300"],
+        answer: 2
+      },
+      {
+        q: "전체에서 일부가 차지하는 정도를 나타내는 말은?",
+        choices: ["단가", "비율", "중량", "시간", "둘레"],
+        answer: 1
       }
     ];
 
@@ -765,6 +1146,11 @@
       chargeStart: 0,
       chargeRatio: 0,
       scores: [0, 0],
+      gameStarted: false,
+      modeChosen: false,
+      gameMode: "pvp",
+      aiDifficulty: "normal",
+      aiThinking: false,
       throwsSinceWind: 0,
       throwsSinceQuiz: 0,
       quizQueue: [],
@@ -803,6 +1189,53 @@
       };
     }
 
+    function activeAIProfile() {
+      return aiProfiles[state.aiDifficulty] || aiProfiles.normal;
+    }
+
+    function isAIPlayer(playerIndex) {
+      return state.gameMode === "pve" && playerIndex === aiPlayerIndex;
+    }
+
+    function isAITurn() {
+      return state.gameStarted && state.phase === "aim" && isAIPlayer(state.turn);
+    }
+
+    function showModeSelect() {
+      state.phase = "mode";
+      state.gameStarted = false;
+      state.aiThinking = false;
+      state.charging = false;
+      state.chargeRatio = 0;
+      state.projectile = null;
+      state.pendingRepeatShot = null;
+      state.quiz = null;
+      state.hoveredItem = null;
+      quizModal.classList.add("hidden");
+      quizModal.setAttribute("aria-hidden", "true");
+      summaryModal.classList.add("hidden");
+      summaryModal.setAttribute("aria-hidden", "true");
+      modeModal.classList.remove("hidden");
+      modeModal.setAttribute("aria-hidden", "false");
+      updateHud();
+      message.textContent = "모드를 선택해 주세요";
+    }
+
+    function chooseMode(mode, difficulty = "normal") {
+      state.gameMode = mode;
+      state.aiDifficulty = difficulty;
+      state.gameStarted = true;
+      state.aiThinking = false;
+      if (!state.modeChosen) {
+        state.scores = [0, 0];
+        state.round = 0;
+        state.modeChosen = true;
+      }
+      modeModal.classList.add("hidden");
+      modeModal.setAttribute("aria-hidden", "true");
+      startRound();
+    }
+
     function createPlayers() {
       return [
         {
@@ -823,7 +1256,7 @@
           face: 1
         },
         {
-          name: "회색",
+          name: state.gameMode === "pve" ? `회색 AI(${activeAIProfile().label})` : "회색",
           x: WORLD_W * 0.9,
           y: groundY - 4,
           hp: maxHp,
@@ -931,6 +1364,7 @@
       state.pendingRepeatShot = null;
       state.charging = false;
       state.chargeRatio = 0;
+      state.aiThinking = false;
       state.throwsSinceWind = 0;
       state.throwsSinceQuiz = 0;
       state.quizQueue = [];
@@ -948,6 +1382,7 @@
         y: groundY - 230
       };
       updateHud();
+      maybeScheduleAIAction();
     }
 
     function renderHpBar(container, hp) {
@@ -1016,17 +1451,24 @@
     }
 
     function updateHud() {
+      if (state.players.length < 2 || !state.wind) return;
       const active = state.players[state.turn];
       const windArrow = state.wind.dir > 0 ? "→" : "←";
+      leftName.textContent = state.players[0].name;
+      rightName.textContent = state.players[1].name;
       renderHpBar(leftHp, state.players[0].hp);
       renderHpBar(rightHp, state.players[1].hp);
       leftScore.textContent = `${state.scores[0]}승`;
       rightScore.textContent = `${state.scores[1]}승`;
-      turnLabel.textContent = `${active.name} 차례`;
+      turnLabel.textContent = isAITurn() ? `${active.name} 생각 중` : `${active.name} 차례`;
       windLabel.innerHTML = `<span class="wind-arrow">${windArrow}</span><span>바람 ${state.wind.speed}m/s</span>`;
       powerFill.style.transform = `scaleX(${state.chargeRatio})`;
       powerValue.textContent = `${Math.round(state.chargeRatio * 100)}%`;
-      message.textContent = state.phase === "aim" ? `${active.name} 차례` : message.textContent;
+      if (state.phase === "aim") {
+        message.textContent = isAITurn() ? `${active.name} 생각 중` : `${active.name} 차례`;
+      } else if (state.phase === "mode") {
+        message.textContent = "모드를 선택해 주세요";
+      }
     }
 
     function screenPoint(event) {
@@ -1208,6 +1650,13 @@
       renderQuiz();
       updateHud();
       message.textContent = `${player.name} 코인 문제`;
+      if (isAIPlayer(state.quiz.playerIndex)) {
+        quizOptions.querySelectorAll("button").forEach((button) => {
+          button.disabled = true;
+        });
+        message.textContent = `${player.name} 문제 푸는 중`;
+        window.setTimeout(answerAIQuiz, 720);
+      }
     }
 
     function queueQuizPair(firstPlayerIndex) {
@@ -1227,6 +1676,7 @@
       state.quiz = null;
       state.phase = "aim";
       updateHud();
+      maybeScheduleAIAction();
     }
 
     function answerQuiz(choiceIndex) {
@@ -1253,6 +1703,18 @@
       updateHud();
       renderQuiz();
       window.setTimeout(closeQuiz, 1050);
+    }
+
+    function answerAIQuiz() {
+      if (!state.quiz || state.quiz.answered || !isAIPlayer(state.quiz.playerIndex)) return;
+      const quiz = state.quiz.question;
+      const profile = activeAIProfile();
+      const willAnswerCorrectly = Math.random() < profile.quizChance;
+      const wrongChoices = quiz.choices
+        .map((_, index) => index)
+        .filter((index) => index !== quiz.answer);
+      const choice = willAnswerCorrectly ? quiz.answer : choose(wrongChoices);
+      answerQuiz(choice);
     }
 
     function useItem(playerIndex, itemId) {
@@ -1306,6 +1768,10 @@
 
     function handleItemPointer(event) {
       const point = screenPoint(event);
+      if (isAITurn()) {
+        message.textContent = "AI 차례예요";
+        return true;
+      }
       const hit = itemHitAtPoint(point);
       if (!hit) {
         const iconHit = itemIconAtPoint(point);
@@ -1345,6 +1811,10 @@
 
     function beginCharge(event) {
       if (state.phase !== "aim") return;
+      if (isAITurn()) {
+        message.textContent = "AI 차례예요";
+        return;
+      }
       state.aim = canvasPoint(event);
       state.charging = true;
       state.chargeStart = performance.now();
@@ -1362,6 +1832,7 @@
     function moveAim(event) {
       updateItemHover(event);
       if (state.phase !== "aim") return;
+      if (isAITurn()) return;
       state.aim = canvasPoint(event);
     }
 
@@ -1377,6 +1848,27 @@
         r: radius,
         transparent,
         bounced: false,
+        criticalAllowed: !isAIPlayer(ownerIndex) || Math.random() < aiCriticalChance,
+        trail: [],
+        owner: ownerIndex
+      };
+    }
+
+    function createProjectileFromVelocity(ownerIndex, vx, vy, radius, transparent = false) {
+      const player = state.players[ownerIndex];
+      const origin = playerAimPoint(player);
+      const screenVx = vx * worldScaleX;
+      const len = Math.hypot(screenVx, vy) || 1;
+      player.stats.throws += 1;
+      return {
+        x: origin.x + (screenVx / len) / worldScaleX * 22,
+        y: origin.y + vy / len * 22,
+        vx,
+        vy,
+        r: radius,
+        transparent,
+        bounced: false,
+        criticalAllowed: !isAIPlayer(ownerIndex) || Math.random() < aiCriticalChance,
         trail: [],
         owner: ownerIndex
       };
@@ -1401,6 +1893,95 @@
       message.textContent = "발사";
       updateHud();
       message.textContent = transparent ? "투명 투척" : repeat ? "도르마무 첫 투척" : "발사";
+    }
+
+    function maybeUseAIItem() {
+      if (!isAITurn()) return;
+      const ai = state.players[aiPlayerIndex];
+      const profile = activeAIProfile();
+      const heal = itemById("heal");
+      const transparent = itemById("transparent");
+      const sizeup = itemById("sizeup");
+
+      if (ai.hp <= 6 && heal && ai.coins >= heal.cost && Math.random() < 0.82) {
+        useItem(aiPlayerIndex, "heal");
+        return;
+      }
+
+      if (
+        transparent &&
+        ai.coins >= transparent.cost &&
+        !ai.activeItems.transparent &&
+        Math.random() < (profile.hitChance >= 0.75 ? 0.22 : 0.14)
+      ) {
+        useItem(aiPlayerIndex, "transparent");
+        return;
+      }
+
+      if (sizeup && ai.coins >= sizeup.cost && !ai.activeItems.sizeup && Math.random() < 0.36) {
+        useItem(aiPlayerIndex, "sizeup");
+      }
+    }
+
+    function launchAIStone() {
+      if (!isAITurn()) {
+        state.aiThinking = false;
+        return;
+      }
+
+      maybeUseAIItem();
+
+      const ai = state.players[aiPlayerIndex];
+      const target = state.players[0];
+      const profile = activeAIProfile();
+      const origin = playerAimPoint(ai);
+      const center = playerHitCenter(target);
+      const accurateAim = Math.random() < profile.hitChance;
+      let targetX = center.x;
+      let targetY = center.y - rand(0, 12);
+
+      if (accurateAim) {
+        targetX += rand(-profile.aimNoise, profile.aimNoise) / worldScaleX;
+        targetY += rand(-profile.aimNoise * 0.32, profile.aimNoise * 0.32);
+      } else {
+        targetX += choose([-1, 1]) * rand(profile.missMin, profile.missMax) / worldScaleX;
+        targetY += rand(-78, 90);
+      }
+
+      const flightTime = accurateAim ? rand(1.55, 2.2) : rand(1.25, 2.05);
+      const vx = (targetX - origin.x - 0.5 * state.wind.accel * flightTime * flightTime) / flightTime;
+      const vy = (targetY - origin.y - 0.5 * gravity * flightTime * flightTime) / flightTime;
+      const radius = ai.activeItems.sizeup ? projectileRadius * 2 : projectileRadius;
+      const transparent = ai.activeItems.transparent;
+
+      ai.activeItems.dormammu = false;
+      ai.activeItems.sizeup = false;
+      ai.activeItems.transparent = false;
+      state.pendingRepeatShot = null;
+      state.projectile = createProjectileFromVelocity(aiPlayerIndex, vx, vy, radius, transparent);
+      state.phase = "flight";
+      state.aiThinking = false;
+      state.chargeRatio = 0;
+      updateHud();
+      message.textContent = transparent ? `${ai.name} 투명 투척` : `${ai.name} 발사`;
+    }
+
+    function maybeScheduleAIAction() {
+      if (!isAITurn() || state.aiThinking || state.quiz || state.projectile) return;
+      const round = state.round;
+      const ai = state.players[aiPlayerIndex];
+      state.aiThinking = true;
+      state.charging = false;
+      state.chargeRatio = 0;
+      updateHud();
+      message.textContent = `${ai.name} 생각 중`;
+      window.setTimeout(() => {
+        if (state.round !== round || !isAITurn()) {
+          state.aiThinking = false;
+          return;
+        }
+        launchAIStone();
+      }, rand(700, 1120));
     }
 
     function launchRepeatShot() {
@@ -1459,7 +2040,9 @@
         const arrow = state.wind.dir > 0 ? "→" : "←";
         message.textContent = `바람 변경 ${arrow} ${state.wind.speed}m/s`;
       }
-      openQueuedQuizForTurn();
+      if (!openQueuedQuizForTurn()) {
+        maybeScheduleAIAction();
+      }
     }
 
     function rectCircle(rect, circle) {
@@ -1624,8 +2207,9 @@
 
       const targetIndices = p.bounced ? [0, 1] : [state.turn === 0 ? 1 : 0];
       for (const targetIndex of targetIndices) {
-        const critical = isCriticalHit(state.players[targetIndex], p);
-        if (critical || hitPlayer(state.players[targetIndex], p)) {
+        const criticalZone = isCriticalHit(state.players[targetIndex], p);
+        const critical = criticalZone && p.criticalAllowed;
+        if (criticalZone || hitPlayer(state.players[targetIndex], p)) {
           applyHit(targetIndex, p, critical);
           return;
         }
@@ -2590,9 +3174,15 @@
     canvas.addEventListener("pointerup", endCharge);
     canvas.addEventListener("pointercancel", endCharge);
     restart.addEventListener("click", () => startRound());
-    summaryNext.addEventListener("click", () => startRound());
+    summaryNext.addEventListener("click", () => showModeSelect());
+    modeButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        chooseMode(button.dataset.mode, button.dataset.difficulty || "normal");
+      });
+    });
 
     startRound();
+    showModeSelect();
     requestAnimationFrame(loop);
   </script>
 </body>
